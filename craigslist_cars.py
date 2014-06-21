@@ -6,7 +6,10 @@ import urlparse
 
 def parse_car_listing(details_url):
     """Scrape car details craigslist page for given url"""
-    pass
+    response = requests.get(details_url)
+    soup = BeautifulSoup(response.content)
+    condition_groups = soup.find_all('p', {'class': 'attrgroup'})
+
 
 def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimum_year=None):
     """Search list of cars and trucks on craigslist"""
@@ -17,18 +20,21 @@ def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimu
 
     # Search cragislist for given car attributes
     response = requests.get(listings_url, 
-        params={'query': brand + model, 'minAsk': minimum_price, 'autoMinYear': minimum_year})
+        params={'query': brand + "+" + model, 'minAsk': minimum_price, 'autoMinYear': minimum_year, 'sort': 'priceasc'})
+    print response.content
 
     soup = BeautifulSoup(response.content)
 
     # Each returned car listing is in a html span tag with class pl
     car_listings = soup.find_all('span', {'class': 'pl'})
+    print car_listings
 
     for car in car_listings:
         # Get details page link url
         details_link = car.find('a').attrs['href']
-        details_url = urlparse.urljoin(base_url, details_url)
+        details_url = urlparse.urljoin(base_url, details_link)
         parse_car_listing(details_url)
+
 
 def main():
     parser = argparse.ArgumentParser(
