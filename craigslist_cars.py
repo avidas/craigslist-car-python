@@ -4,7 +4,9 @@ import requests
 from bs4 import BeautifulSoup
 import urlparse 
 from collections import defaultdict
-import dateutil.parser 
+import dateutil.parser
+from dateutil.relativedelta import relativedelta
+from datetime import datetime
 
 def parse_car_conditions(condition_groups):
     """Return dictionary with car conditions"""
@@ -25,10 +27,12 @@ def parse_car_conditions(condition_groups):
                 conditions_dict["attribute"].append(condition_str[0].strip())
     return conditions_dict
 
+
 def parse_time_posted(soup):
     """Zone agnostic parse of posting date for car"""
     time_posted = dateutil.parser.parse(soup.find('time').attrs['datetime']).replace(tzinfo=None)
     return time_posted
+
 
 def parse_car_listing(details_url):
     """Scrape car details craigslist page for given url"""
@@ -48,10 +52,13 @@ def parse_car_listing(details_url):
     # The main heading on car details page (frequently has car price listed)
     posting_title = soup.find('h2', {'class':'postingtitle'}).text.strip()
     car_attributes["posting_title"].append(posting_title)
+
+    posting_body = soup.find('section', {'id':'postingbody'}).text.strip()
+    car_attributes["posting_body"].append(posting_body)
     return car_attributes
 
 
-def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimum_year=None):
+def get_craigslist_cars(city, limit, brand=None, model=None, minimum_price=None, minimum_year=None):
     """Search list of cars and trucks on craigslist"""
     
     # Craigslist url for car listings for a city
@@ -62,7 +69,6 @@ def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimu
     response = requests.get(listings_url, 
         params={'query': brand + "+" + model, 'minAsk': minimum_price,
          'autoMinYear': minimum_year, 'sort': 'priceasc'})
-    print response.content
 
     soup = BeautifulSoup(response.content)
 
@@ -72,11 +78,33 @@ def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimu
 
     for car in car_listings:
         # Get car details page link url
+        if len(cars) >= limit: break
         details_link = car.find('a').attrs['href']
         details_url = urlparse.urljoin(base_url, details_link)
         cars.append(parse_car_listing(details_url))
 
     return cars
+
+
+def filter_cars(cars, max_mileage, unallowed_conditions, num_weeks):
+    """return cars with acceptable mileage, state, posting within time_range"""
+    min_posting_date = datetime.now() - relativedelta(weeks=+2)
+    filtered_cars = []
+
+    for car in cars:
+        odometer = None
+        if "odometer" in car:
+            odometer = car.get("odometer")[0]
+        title = None
+        if "title" in car:
+            title = car.get("title")[0]
+
+        time_posted = car.get("time_posted")[0]
+
+        if odometer < max_mileage and title not in unallowed_conditions and time_posted >= min_posting_date:
+            filtered_cars.append(car)
+
+    return filtered_cars
 
 
 def main():
@@ -97,16 +125,19 @@ def main():
         have been totalled or salvaged')
     parser.add_argument("-w", "--week_range", default=2,
         help='number of weeks to search car listings for starting from now')
+    parser.add_argument("-l", "--max_results", default=20,
+        help='limit to this number of results for cars returned')
 
     try:
         args, extra_args = parser.parse_known_args()
-        print(args.model)
     except Exception, e:
         print e
         sys.exit(1)
 
-    cars = get_craigslist_cars(args.city, args.brand, args.model, args.minimum_price,
+    all_cars = get_craigslist_cars(args.city, args.max_results, args.brand, args.model, args.minimum_price,
      args.minimum_year)
+    
+    filtered_cars = filter_cars(all_cars, args.maximum_odometer, args.blacklist_titles, args.week_range)
 
 
 if __name__ == "__main__":
