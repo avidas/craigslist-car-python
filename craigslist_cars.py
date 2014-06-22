@@ -1,9 +1,10 @@
-import argparse
-import sys
-import requests
+import argparse 
+import sys 
+import requests 
 from bs4 import BeautifulSoup
-import urlparse
+import urlparse 
 from collections import defaultdict
+import dateutil.parser 
 
 def parse_car_conditions(condition_groups):
     """Return dictionary with car conditions"""
@@ -24,14 +25,30 @@ def parse_car_conditions(condition_groups):
                 conditions_dict["attribute"].append(condition_str[0].strip())
     return conditions_dict
 
+def parse_time_posted(soup):
+    """Zone agnostic parse of posting date for car"""
+    time_posted = dateutil.parser.parse(soup.find('time').attrs['datetime']).replace(tzinfo=None)
+    return time_posted
 
 def parse_car_listing(details_url):
     """Scrape car details craigslist page for given url"""
     response = requests.get(details_url)
     soup = BeautifulSoup(response.content)
+
     # car conditions are grouped in p tags with class attrgroup
     condition_groups = soup.find_all('p', {'class': 'attrgroup'})
-    condition_list = parse_car_conditions(condition_groups)
+    car_attributes = parse_car_conditions(condition_groups)
+
+    # Add to conditions the time the car listing was created
+    time_posted = parse_time_posted(soup)
+    car_attributes["time_posted"].append(time_posted)
+
+    car_attributes["url"].append(details_url)
+    
+    # The main heading on car details page (frequently has car price listed)
+    posting_title = soup.find('h2', {'class':'postingtitle'}).text.strip()
+    car_attributes["posting_title"].append(posting_title)
+    return car_attributes
 
 
 def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimum_year=None):
@@ -51,13 +68,15 @@ def get_craigslist_cars(city, brand=None, model=None, minimum_price=None, minimu
 
     # Each returned car listing is in a html span tag with class pl
     car_listings = soup.find_all('span', {'class': 'pl'})
-    print car_listings
+    cars = []
 
     for car in car_listings:
-        # Get details page link url
+        # Get car details page link url
         details_link = car.find('a').attrs['href']
         details_url = urlparse.urljoin(base_url, details_link)
-        parse_car_listing(details_url)
+        cars.append(parse_car_listing(details_url))
+
+    return cars
 
 
 def main():
@@ -71,6 +90,13 @@ def main():
         help='car model')
     parser.add_argument("-p", "--minimum_price", default='4000')
     parser.add_argument("-y", "--minimum_year", default='2007')
+    parser.add_argument("-o", "--maximum_odometer", default='100000',
+        help='maximum miles travelled by car before purchase')
+    parser.add_argument("-t", "--blacklist_titles", nargs='+', default=['salvage', 'rebuilt'],
+        help='List unacceptable states for car, e.g. You may want to filter out cars that \
+        have been totalled or salvaged')
+    parser.add_argument("-w", "--week_range", default=2,
+        help='number of weeks to search car listings for starting from now')
 
     try:
         args, extra_args = parser.parse_known_args()
@@ -79,9 +105,9 @@ def main():
         print e
         sys.exit(1)
 
-    get_craigslist_cars(args.city, args.brand, args.model, args.minimum_price,
+    cars = get_craigslist_cars(args.city, args.brand, args.model, args.minimum_price,
      args.minimum_year)
-    
+
 
 if __name__ == "__main__":
     try:
