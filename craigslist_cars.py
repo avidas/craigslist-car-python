@@ -16,7 +16,8 @@ def parse_car_conditions(condition_groups):
         conditions = condition_group.find_all('span')
         for condition in conditions:
             # a condition is either separated as : separated key value
-            # or just a one line text item
+            # or just a one line text item, gettable by using beautiful
+            # soup's text method
             condition_str = condition.text.strip().split(':')
             if len(condition_str) > 1:
                 # if condition is a key value pair then update car 
@@ -127,6 +128,12 @@ def main():
         help='number of weeks to search car listings for starting from now')
     parser.add_argument("-l", "--max_results", default=20,
         help='limit to this number of results for cars returned')
+    parser.add_argument("-l", "--max_results", default=20,
+        help='limit to this number of results for cars returned')
+    parser.add_argument("-o", "--output", default=output.txt,
+        help='write matching cars to file')
+    parser.add_argument("-v", "--verbose", action='store_true',
+        help='print debug output')
 
     try:
         args, extra_args = parser.parse_known_args()
