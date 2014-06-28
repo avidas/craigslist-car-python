@@ -119,7 +119,7 @@ def main():
         help='car model')
     parser.add_argument("-p", "--minimum_price", default='4000')
     parser.add_argument("-y", "--minimum_year", default='2007')
-    parser.add_argument("-o", "--maximum_odometer", default='100000',
+    parser.add_argument("-d", "--maximum_odometer", default='100000',
         help='maximum miles travelled by car before purchase')
     parser.add_argument("-t", "--blacklist_titles", nargs='+', default=['salvage', 'rebuilt'],
         help='List unacceptable states for car, e.g. You may want to filter out cars that \
@@ -128,9 +128,7 @@ def main():
         help='number of weeks to search car listings for starting from now')
     parser.add_argument("-l", "--max_results", default=20,
         help='limit to this number of results for cars returned')
-    parser.add_argument("-l", "--max_results", default=20,
-        help='limit to this number of results for cars returned')
-    parser.add_argument("-o", "--output", default=output.txt,
+    parser.add_argument("-o", "--output",
         help='write matching cars to file')
     parser.add_argument("-v", "--verbose", action='store_true',
         help='print debug output')
