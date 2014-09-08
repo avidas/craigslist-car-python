@@ -10,6 +10,7 @@ from datetime import datetime
 
 def parse_car_conditions(condition_groups):
     """Return dictionary with car conditions"""
+    print condition_groups
     conditions_dict = defaultdict(list)
     for condition_group in condition_groups:
         # span tags have the condition e.g. odometer, title
@@ -26,6 +27,7 @@ def parse_car_conditions(condition_groups):
             else:
                 # otherwise add value under generic attribute
                 conditions_dict["attribute"].append(condition_str[0].strip())
+    print conditions_dict
     return conditions_dict
 
 
@@ -143,6 +145,7 @@ def main():
      args.minimum_year)
     
     filtered_cars = filter_cars(all_cars, args.maximum_odometer, args.blacklist_titles, args.week_range)
+    print filtered_cars
 
 
 if __name__ == "__main__":
